@@ -11,7 +11,6 @@ from sentence_transformers import SentenceTransformer
 from src.generator import ClaudeGenerator
 from src.judge import ClaudeJudge
 from src.reranker import CrossEncoderReranker
-from src.rewriter import ClaudeRewriter
 from src.retriever import (
     bm25_search,
     dense_search,
@@ -21,6 +20,7 @@ from src.retriever import (
     load_dense_index,
     load_doc_ids,
 )
+from src.rewriter import ClaudeRewriter
 
 
 def load_config(config_path: Path) -> dict[str, Any]:
