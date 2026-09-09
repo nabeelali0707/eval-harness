@@ -12,7 +12,12 @@ from src.pipeline import EvalPipeline, load_config
 from src.scorer import mean_reciprocal_rank, recall_at_k
 
 
-def main(config_path: Path, questions_path: Path, output_dir: Path) -> None:
+def main(
+    config_path: Path,
+    questions_path: Path,
+    output_dir: Path,
+    sample_size: int | None = None,
+) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     config = load_config(config_path)
     mode_name = config["name"]
@@ -20,6 +25,9 @@ def main(config_path: Path, questions_path: Path, output_dir: Path) -> None:
     print(f"Loading questions from {questions_path} ...")
     with questions_path.open(encoding="utf-8") as f:
         questions = json.load(f)
+
+    if sample_size:
+        questions = questions[:sample_size]
 
     print(f"Running {mode_name} on {len(questions)} questions ...")
     pipeline = EvalPipeline(config)
@@ -74,5 +82,6 @@ if __name__ == "__main__":
     parser.add_argument("--config", required=True)
     parser.add_argument("--questions", default="data/eval_questions.json")
     parser.add_argument("--output", default="results")
+    parser.add_argument("--sample", type=int, default=None, help="Run on first N questions only")
     args = parser.parse_args()
-    main(Path(args.config), Path(args.questions), Path(args.output))
+    main(Path(args.config), Path(args.questions), Path(args.output), args.sample)
