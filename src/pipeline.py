@@ -11,6 +11,7 @@ from sentence_transformers import SentenceTransformer
 from src.generator import ClaudeGenerator
 from src.judge import ClaudeJudge
 from src.reranker import CrossEncoderReranker
+from src.rewriter import ClaudeRewriter
 from src.retriever import (
     bm25_search,
     dense_search,
@@ -61,14 +62,26 @@ class EvalPipeline:
             self.reranker = None
 
         generator_cfg = config.get("generator", {})
+        self.generator_model = generator_cfg.get("model", "claude-sonnet-4-6")
+
+        rewriter_cfg = config.get("rewriter", {})
+        self.use_rewriter = rewriter_cfg.get("enabled", False)
+        if self.use_rewriter:
+            self.rewriter = ClaudeRewriter(
+                model=self.generator_model,
+                max_tokens=256,
+            )
+            self.rewrite_strategy = rewriter_cfg.get("strategy", "multi_query")
+        else:
+            self.rewriter = None
         self.use_generator = generator_cfg.get("enabled", True)
         if self.use_generator:
             self.generator = ClaudeGenerator(
-                model=generator_cfg.get("model", "claude-sonnet-4-6"),
+                model=self.generator_model,
                 max_tokens=generator_cfg.get("max_tokens", 512),
             )
             self.judge = ClaudeJudge(
-                model=generator_cfg.get("model", "claude-sonnet-4-6"),
+                model=self.generator_model,
                 max_tokens=256,
             )
         else:
@@ -77,6 +90,15 @@ class EvalPipeline:
 
     def _get_passages(self, doc_ids: list[str]) -> list[str]:
         return [self.corpus_by_id[did]["text"] for did in doc_ids if did in self.corpus_by_id]
+
+    def rewrite(self, query: str) -> tuple[list[str], dict[str, float]]:
+        if not self.use_rewriter:
+            return [query], {}
+
+        t0 = time.perf_counter()
+        queries = self.rewriter.rewrite(query, self.rewrite_strategy)
+        latencies = {"rewrite_ms": (time.perf_counter() - t0) * 1000}
+        return queries, latencies
 
     def retrieve(self, query: str) -> tuple[list[str], dict[str, float]]:
         latencies: dict[str, float] = {}
@@ -103,6 +125,42 @@ class EvalPipeline:
         latencies["retrieve_ms"] = (time.perf_counter() - t0) * 1000
 
         retrieved_ids = [doc_id for doc_id, _ in results]
+        return retrieved_ids, latencies
+
+    def retrieve_multi(
+        self, queries: list[str]
+    ) -> tuple[list[str], dict[str, float]]:
+        """Retrieve for multiple queries and fuse results with RRF."""
+        latencies: dict[str, float] = {}
+        all_results: list[list[tuple[str, float]]] = []
+
+        t0 = time.perf_counter()
+        for query in queries:
+            if self.mode == "dense":
+                results = dense_search(
+                    query, self.encoder, self.dense_index, self.doc_ids, self.top_k
+                )
+            elif self.mode == "bm25":
+                results = bm25_search(query, self.bm25, self.doc_ids, self.top_k)
+            elif self.mode == "hybrid":
+                results = hybrid_search(
+                    query,
+                    self.encoder,
+                    self.dense_index,
+                    self.bm25,
+                    self.doc_ids,
+                    self.top_k,
+                    self.rrf_k,
+                )
+            else:
+                raise ValueError(f"Unknown retriever mode: {self.mode}")
+            all_results.append(results)
+
+        from src.retriever import reciprocal_rank_fusion
+
+        fused = reciprocal_rank_fusion(all_results, k=self.rrf_k)
+        latencies["retrieve_ms"] = (time.perf_counter() - t0) * 1000
+        retrieved_ids = [doc_id for doc_id, _ in fused]
         return retrieved_ids, latencies
 
     def rerank(
@@ -147,11 +205,20 @@ class EvalPipeline:
 
     def run(self, question: dict[str, Any]) -> dict[str, Any]:
         query = question["question"]
-        retrieved_ids, latencies = self.retrieve(query)
+        queries, rewrite_latencies = self.rewrite(query)
+
+        if self.use_rewriter:
+            retrieved_ids, retrieve_latencies = self.retrieve_multi(queries)
+        else:
+            retrieved_ids, retrieve_latencies = self.retrieve(query)
+
         final_ids, rerank_latencies = self.rerank(query, retrieved_ids)
         answer, generate_latencies = self.generate(query, final_ids)
         scores, judge_latencies = self.judge_answer(query, answer, final_ids)
 
+        latencies: dict[str, float] = {}
+        latencies.update(rewrite_latencies)
+        latencies.update(retrieve_latencies)
         latencies.update(rerank_latencies)
         latencies.update(generate_latencies)
         latencies.update(judge_latencies)
