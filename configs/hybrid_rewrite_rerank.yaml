@@ -1,0 +1,16 @@
+name: hybrid_rewrite_rerank
+retriever:
+  mode: hybrid
+  dense_model: BAAI/bge-large-en-v1.5
+  rrf_k: 60
+  top_k: 20
+rewriter:
+  enabled: true
+  strategy: multi_query
+reranker:
+  enabled: true
+  model: BAAI/bge-reranker-v2-m3
+  top_n: 5
+generator:
+  model: claude-sonnet-4-6
+  max_tokens: 512

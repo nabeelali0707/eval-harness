@@ -1,0 +1,12 @@
+name: dense_only
+retriever:
+  mode: dense
+  dense_model: BAAI/bge-large-en-v1.5
+  top_k: 5
+rewriter:
+  enabled: false
+reranker:
+  enabled: false
+generator:
+  model: claude-sonnet-4-6
+  max_tokens: 512

@@ -1,0 +1,11 @@
+name: bm25_only
+retriever:
+  mode: bm25
+  top_k: 5
+rewriter:
+  enabled: false
+reranker:
+  enabled: false
+generator:
+  model: claude-sonnet-4-6
+  max_tokens: 512

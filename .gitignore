@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.pyc
+.cache/
+cache/
+results/*.csv
+!results/.gitkeep
+*.log
+.DS_Store
+.vscode/
+.idea/
