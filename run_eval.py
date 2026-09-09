@@ -17,9 +17,12 @@ def main(
     questions_path: Path,
     output_dir: Path,
     sample_size: int | None = None,
+    no_generator: bool = False,
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     config = load_config(config_path)
+    if no_generator:
+        config.setdefault("generator", {})["enabled"] = False
     mode_name = config["name"]
 
     print(f"Loading questions from {questions_path} ...")
@@ -83,5 +86,12 @@ if __name__ == "__main__":
     parser.add_argument("--questions", default="data/eval_questions.json")
     parser.add_argument("--output", default="results")
     parser.add_argument("--sample", type=int, default=None, help="Run on first N questions only")
+    parser.add_argument("--no-generator", action="store_true", help="Skip generation and judging (retrieval-only)")
     args = parser.parse_args()
-    main(Path(args.config), Path(args.questions), Path(args.output), args.sample)
+    main(
+        Path(args.config),
+        Path(args.questions),
+        Path(args.output),
+        args.sample,
+        args.no_generator,
+    )
