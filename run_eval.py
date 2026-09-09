@@ -8,7 +8,7 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from src.pipeline import RetrievalPipeline, load_config
+from src.pipeline import EvalPipeline, load_config
 from src.scorer import mean_reciprocal_rank, recall_at_k
 
 
@@ -22,7 +22,7 @@ def main(config_path: Path, questions_path: Path, output_dir: Path) -> None:
         questions = json.load(f)
 
     print(f"Running {mode_name} on {len(questions)} questions ...")
-    pipeline = RetrievalPipeline(config)
+    pipeline = EvalPipeline(config)
 
     rows = []
     for question in tqdm(questions, desc=mode_name):
@@ -39,8 +39,13 @@ def main(config_path: Path, questions_path: Path, output_dir: Path) -> None:
         "mode",
         "recall_at_5",
         "mrr",
+        "faithfulness",
+        "answer_relevance",
         "latency_ms",
         "retrieve_ms",
+        "rerank_ms",
+        "generate_ms",
+        "judge_ms",
         "generated_answer",
         "retrieved_doc_ids",
     ]
@@ -53,8 +58,14 @@ def main(config_path: Path, questions_path: Path, output_dir: Path) -> None:
 
     avg_recall = sum(r["recall_at_5"] for r in rows) / len(rows)
     avg_mrr = sum(r["mrr"] for r in rows) / len(rows)
+    avg_faith = sum(r.get("faithfulness", 0.0) for r in rows) / len(rows)
+    avg_rel = sum(r.get("answer_relevance", 0.0) for r in rows) / len(rows)
     avg_latency = sum(r["latency_ms"] for r in rows) / len(rows)
-    print(f"\n{mode_name}: recall@5={avg_recall:.3f}, mrr={avg_mrr:.3f}, avg_latency={avg_latency:.1f}ms")
+    print(
+        f"\n{mode_name}: recall@5={avg_recall:.3f}, mrr={avg_mrr:.3f}, "
+        f"faithfulness={avg_faith:.3f}, relevance={avg_rel:.3f}, "
+        f"avg_latency={avg_latency:.1f}ms"
+    )
     print(f"Wrote per-question results to {output_path}")
 
 

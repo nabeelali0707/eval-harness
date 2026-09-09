@@ -9,7 +9,7 @@ rewriter:
   strategy: multi_query
 reranker:
   enabled: true
-  model: BAAI/bge-reranker-v2-m3
+  model: cross-encoder/ms-marco-MiniLM-L-6-v2
   top_n: 5
 generator:
   model: claude-sonnet-4-6

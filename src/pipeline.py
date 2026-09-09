@@ -8,6 +8,9 @@ from typing import Any
 import yaml
 from sentence_transformers import SentenceTransformer
 
+from src.generator import ClaudeGenerator
+from src.judge import ClaudeJudge
+from src.reranker import CrossEncoderReranker
 from src.retriever import (
     bm25_search,
     dense_search,
@@ -24,13 +27,14 @@ def load_config(config_path: Path) -> dict[str, Any]:
         return yaml.safe_load(f)
 
 
-class RetrievalPipeline:
-    """Loads indices/corpus once and runs retrieval for a config."""
+class EvalPipeline:
+    """Loads indices/corpus once and runs retrieval + optional rerank + generate + judge."""
 
     def __init__(self, config: dict[str, Any], cache_dir: Path = Path("cache")) -> None:
         self.config = config
         self.cache_dir = cache_dir
         self.corpus = load_corpus(Path("data/corpus.json"))
+        self.corpus_by_id = {doc["doc_id"]: doc for doc in self.corpus}
         self.doc_ids = load_doc_ids(cache_dir / "doc_ids.json")
         self.dense_index = load_dense_index(cache_dir / "dense.index")
         self.bm25 = load_bm25_index(cache_dir / "bm25.pkl")
@@ -48,8 +52,33 @@ class RetrievalPipeline:
         else:
             self.encoder = None
 
+        reranker_cfg = config.get("reranker", {})
+        self.use_reranker = reranker_cfg.get("enabled", False)
+        if self.use_reranker:
+            self.reranker = CrossEncoderReranker(reranker_cfg["model"])
+            self.rerank_top_n = reranker_cfg.get("top_n", 5)
+        else:
+            self.reranker = None
+
+        generator_cfg = config.get("generator", {})
+        self.use_generator = generator_cfg.get("enabled", True)
+        if self.use_generator:
+            self.generator = ClaudeGenerator(
+                model=generator_cfg.get("model", "claude-sonnet-4-6"),
+                max_tokens=generator_cfg.get("max_tokens", 512),
+            )
+            self.judge = ClaudeJudge(
+                model=generator_cfg.get("model", "claude-sonnet-4-6"),
+                max_tokens=256,
+            )
+        else:
+            self.generator = None
+            self.judge = None
+
+    def _get_passages(self, doc_ids: list[str]) -> list[str]:
+        return [self.corpus_by_id[did]["text"] for did in doc_ids if did in self.corpus_by_id]
+
     def retrieve(self, query: str) -> tuple[list[str], dict[str, float]]:
-        """Run retrieval and return (doc_ids, stage_latencies_ms)."""
         latencies: dict[str, float] = {}
 
         t0 = time.perf_counter()
@@ -76,16 +105,67 @@ class RetrievalPipeline:
         retrieved_ids = [doc_id for doc_id, _ in results]
         return retrieved_ids, latencies
 
+    def rerank(
+        self, query: str, retrieved_ids: list[str]
+    ) -> tuple[list[str], dict[str, float]]:
+        if not self.use_reranker:
+            return retrieved_ids, {}
+
+        t0 = time.perf_counter()
+        candidates = [
+            (did, self.corpus_by_id[did]["text"])
+            for did in retrieved_ids
+            if did in self.corpus_by_id
+        ]
+        reranked = self.reranker.rerank(query, candidates, self.rerank_top_n)
+        latencies = {"rerank_ms": (time.perf_counter() - t0) * 1000}
+        return [doc_id for doc_id, _ in reranked], latencies
+
+    def generate(
+        self, question: str, final_ids: list[str]
+    ) -> tuple[str, dict[str, float]]:
+        if not self.use_generator or not self.generator:
+            return "", {}
+
+        t0 = time.perf_counter()
+        passages = self._get_passages(final_ids)
+        answer = self.generator.generate(question, passages)
+        latencies = {"generate_ms": (time.perf_counter() - t0) * 1000}
+        return answer, latencies
+
+    def judge_answer(
+        self, question: str, answer: str, final_ids: list[str]
+    ) -> tuple[dict[str, float], dict[str, float]]:
+        if not self.use_generator or not self.judge:
+            return {"faithfulness": 0.0, "answer_relevance": 0.0}, {}
+
+        t0 = time.perf_counter()
+        passages = self._get_passages(final_ids)
+        scores = self.judge.score(question, answer, passages)
+        latencies = {"judge_ms": (time.perf_counter() - t0) * 1000}
+        return scores, latencies
+
     def run(self, question: dict[str, Any]) -> dict[str, Any]:
-        """Run one eval question through the pipeline."""
-        retrieved_ids, latencies = self.retrieve(question["question"])
+        query = question["question"]
+        retrieved_ids, latencies = self.retrieve(query)
+        final_ids, rerank_latencies = self.rerank(query, retrieved_ids)
+        answer, generate_latencies = self.generate(query, final_ids)
+        scores, judge_latencies = self.judge_answer(query, answer, final_ids)
+
+        latencies.update(rerank_latencies)
+        latencies.update(generate_latencies)
+        latencies.update(judge_latencies)
+
         return {
             "question_id": question["id"],
             "mode": self.config["name"],
-            "question": question["question"],
+            "question": query,
             "expected_answer": question.get("expected_answer", ""),
             "gold_doc_ids": question.get("gold_doc_ids", []),
-            "retrieved_doc_ids": retrieved_ids,
+            "retrieved_doc_ids": final_ids,
+            "generated_answer": answer,
+            "faithfulness": scores.get("faithfulness", 0.0),
+            "answer_relevance": scores.get("answer_relevance", 0.0),
             **latencies,
             "latency_ms": sum(latencies.values()),
         }
@@ -93,5 +173,5 @@ class RetrievalPipeline:
 
 def run_pipeline(question: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     """Convenience function for a single question."""
-    pipeline = RetrievalPipeline(config)
+    pipeline = EvalPipeline(config)
     return pipeline.run(question)
