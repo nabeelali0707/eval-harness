@@ -3,7 +3,7 @@ __pycache__/
 *.pyc
 .cache/
 cache/
-results/*.csv
+results/*
 !results/.gitkeep
 *.log
 .DS_Store
