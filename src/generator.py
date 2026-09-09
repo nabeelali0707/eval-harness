@@ -11,7 +11,12 @@ load_dotenv()
 
 class ClaudeGenerator:
     def __init__(self, model: str = "claude-sonnet-4-6", max_tokens: int = 512) -> None:
-        self.client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "ANTHROPIC_API_KEY not found. Set it in a .env file or environment."
+            )
+        self.client = Anthropic(api_key=api_key)
         self.model = model
         self.max_tokens = max_tokens
 
