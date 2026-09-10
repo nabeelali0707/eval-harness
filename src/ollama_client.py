@@ -24,7 +24,7 @@ class OllamaClient:
         self,
         model: str = DEFAULT_OLLAMA_MODEL,
         host: str | None = None,
-        timeout: float = 120.0,
+        timeout: float = 300.0,
     ) -> None:
         if model.endswith(":cloud"):
             raise ValueError("Cloud Ollama models are not supported; choose a local model instead.")

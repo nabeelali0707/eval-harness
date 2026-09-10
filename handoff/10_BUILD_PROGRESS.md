@@ -27,6 +27,30 @@ Living log. The agent (or you) should append a dated entry after each work sessi
 
 ---
 
+## 2026-09-10 — Resumable local ablation workflow ready
+
+**Completed:**
+- Added atomic per-question checkpoints, resume/restart controls, and bounded Ollama retries to `run_eval.py`.
+- Preserved completed CSV output until a replacement mode run succeeds; added successful attempt counts to result rows.
+- Increased local Ollama request timeout to five minutes for slower CPU inference.
+- Updated reproduction commands to use resumable runs and explicit comparison inputs.
+
+**Tested:**
+- `python -m pytest` passes (27 tests).
+- `python -m ruff check .` passes.
+- One-question generation/judge preflight completes for all five modes, including reranking and rewriting.
+
+**Deviations from plan:**
+- Added checkpoint recovery before the full ablation because the expected local runtime is multi-day.
+
+**Assumptions made:**
+- A five-minute request timeout is sufficient for the selected local model on current hardware.
+
+**Next up:**
+- Run and resume the complete 150-question five-mode ablation, validate all five CSVs, and publish the final table.
+
+---
+
 ## 2026-09-10 — Local Ollama provider migration complete
 
 **Completed:**

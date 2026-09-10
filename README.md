@@ -49,16 +49,18 @@ python run_eval.py --config configs/bm25_only.yaml --no-generator
 python run_eval.py --config configs/hybrid_rrf.yaml --no-generator
 
 # 4. Run the complete five-mode ablation locally.
-# Each mode uses qwen2.5-coder:7b for generation, rewriting, and judging.
-python run_eval.py --config configs/dense_only.yaml
-python run_eval.py --config configs/bm25_only.yaml
-python run_eval.py --config configs/hybrid_rrf.yaml
-python run_eval.py --config configs/hybrid_rerank.yaml
-python run_eval.py --config configs/hybrid_rewrite_rerank.yaml
+# Each mode checkpoints every successful question and can be resumed safely.
+python run_eval.py --config configs/dense_only.yaml --output results/final_local_ollama_150q --resume
+python run_eval.py --config configs/bm25_only.yaml --output results/final_local_ollama_150q --resume
+python run_eval.py --config configs/hybrid_rrf.yaml --output results/final_local_ollama_150q --resume
+python run_eval.py --config configs/hybrid_rerank.yaml --output results/final_local_ollama_150q --resume
+python run_eval.py --config configs/hybrid_rewrite_rerank.yaml --output results/final_local_ollama_150q --resume
 
-# 5. Compare all modes
-python compare_results.py results/*.csv
+# 5. Compare only the five completed mode outputs.
+python compare_results.py results/final_local_ollama_150q/dense_only.csv results/final_local_ollama_150q/bm25_only.csv results/final_local_ollama_150q/hybrid_rrf.csv results/final_local_ollama_150q/hybrid_rerank.csv results/final_local_ollama_150q/hybrid_rewrite_rerank.csv --output results/final_local_ollama_150q
 ```
+
+`--resume` validates the config and selected-question fingerprint before continuing a checkpoint. Use `--restart` only when intentionally replacing that mode's checkpoint; a completed CSV is not replaced until a new run finishes successfully. `--max-retries` defaults to three retries for local Ollama failures, and `--retry-delay` defaults to five seconds.
 
 No API key is required. Ollama defaults to `http://localhost:11434`; set `OLLAMA_HOST` in a local `.env` file only when your local service uses a different address:
 
@@ -82,7 +84,7 @@ Retrieval-only baseline on 150 HotpotQA questions:
 | dense_only |    1.000 | 0.905 |          20.92 |
 | hybrid_rrf |    0.973 | 0.859 |          33.09 |
 
-On this sample, dense retrieval alone already finds at least one gold document in the top-5 for every question, so hybrid fusion and reranking are not expected to improve Recall@5. Local generation, JSON judging, and the rewrite/rerank route have passed one-question smoke tests; run the complete five-mode local ablation to produce final faithfulness, answer-relevance, and latency comparisons.
+On this sample, dense retrieval alone already finds at least one gold document in the top-5 for every question, so hybrid fusion and reranking are not expected to improve Recall@5. Local generation, JSON judging, and the rewrite/rerank route have passed one-question preflight runs with resumable checkpoints; run the complete five-mode local ablation to produce final faithfulness, answer-relevance, and latency comparisons.
 
 ## Project structure
 
@@ -103,5 +105,6 @@ On this sample, dense retrieval alone already finds at least one gold document i
 - **Config-driven:** adding a sixth mode only requires a new YAML file in `configs/`.
 - **Local by default:** Ollama keeps answer generation, rewriting, and judging on the machine without credentials.
 - **Same generator across all modes:** the only variable under test is retrieval, not generation.
+- **Recoverable evaluation:** atomic per-question checkpoints let multi-day local runs continue after interruption.
 - **No LangChain/LlamaIndex:** plain Python functions so each stage is inspectable and unit-testable.
 - **Cached indices:** `cache/` holds the FAISS dense index and BM25 index so re-runs are fast.

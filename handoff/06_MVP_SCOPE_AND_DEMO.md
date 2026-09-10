@@ -12,7 +12,7 @@ python run_eval.py --config configs/bm25_only.yaml
 python run_eval.py --config configs/hybrid_rrf.yaml
 python run_eval.py --config configs/hybrid_rerank.yaml
 python run_eval.py --config configs/hybrid_rewrite_rerank.yaml
-python compare_results.py results/*.csv
+python compare_results.py results/dense_only.csv results/bm25_only.csv results/hybrid_rrf.csv results/hybrid_rerank.csv results/hybrid_rewrite_rerank.csv
 ```
 
 ...and get a printed + saved (`results/comparison_table.csv` and `.md`) table showing all 5 modes with Recall@5, MRR, Faithfulness, and Avg Latency.

@@ -23,6 +23,10 @@ class FakeResponse:
         return json.dumps(self.payload).encode("utf-8")
 
 
+def test_client_defaults_to_five_minute_timeout():
+    assert ollama_client.OllamaClient().timeout == 300.0
+
+
 def test_client_checks_model_and_sends_generate_payload(monkeypatch):
     requests: list[tuple[str, dict[str, object]]] = []
 

@@ -5,19 +5,15 @@
 
 ## What was done
 
-1. **Connected repo**
-   - Initialized `D:\eval_harness` as a Git repository.
-   - Added `origin` remote pointing to `https://github.com/nabeelali0707/eval-harness.git`.
-   - Pushed all completed milestones to GitHub on the `master` branch.
-
-2. **Project scaffold and data**
-   - Created the project structure, configuration, linting, and test setup.
+1. **Connected repo, scaffold, and data**
+   - Initialized `D:\eval_harness` as a Git repository and connected it to `origin`.
+   - Created the project configuration, linting, test setup, and five pipeline configs.
    - Converted a HotpotQA distractor development-set sample into 150 eval questions and 1,496 corpus chunks.
    - Excluded the raw 59 MB dataset source from Git.
 
-3. **Retrieval baseline (Modes A/B/C)**
+2. **Retrieval baseline (Modes A/B/C)**
    - Built FAISS dense retrieval with `sentence-transformers/all-MiniLM-L6-v2`, BM25 retrieval, RRF fusion, and Recall@5/MRR scoring.
-   - Added a config-driven pipeline, CSV output, and comparison-table aggregation.
+   - Added a config-driven pipeline, per-question CSV output, and comparison-table aggregation.
    - Recorded the 150-question retrieval-only baseline:
 
      | mode       | recall@5 |   mrr | avg_latency_ms |
@@ -26,24 +22,22 @@
      | dense_only |    1.000 | 0.905 |          20.92 |
      | hybrid_rrf |    0.973 | 0.859 |          33.09 |
 
-4. **Reranking and query rewriting (Modes D/E)**
-   - Added the `cross-encoder/ms-marco-MiniLM-L-6-v2` reranker.
-   - Added multi-query expansion and HyDE behind the `rewriter.enabled` configuration flag.
-   - Enforced configured `top_k` after multi-query RRF fusion before reranking.
-
-5. **Local Ollama LLM migration**
-   - Replaced all Anthropic API usage with a standard-library local Ollama client in `src/ollama_client.py`.
+3. **Reranking, rewriting, and local Ollama**
+   - Added the `cross-encoder/ms-marco-MiniLM-L-6-v2` reranker plus multi-query expansion and HyDE.
+   - Replaced all Anthropic API usage with a standard-library local Ollama client.
    - Standardized generation, rewriting, and judging on installed `qwen2.5-coder:7b` across all five YAML configs.
-   - Added clear errors for an unavailable Ollama service, missing local model, malformed responses, and cloud-tagged model names.
-   - Preserved the judge's JSON parsing and 0–1 score normalization safeguards.
-   - Removed the Anthropic dependency and API-key requirement; `.env.example` now documents optional `OLLAMA_HOST` configuration.
+   - Preserved JSON judge parsing and 0–1 score normalization; removed API-key and Anthropic dependency requirements.
 
-6. **Quality checks**
-   - `python -m pytest` passes (22 tests), including Ollama transport, model availability, cloud-model rejection, and shared pipeline-client coverage.
+4. **Resumable final-ablation infrastructure**
+   - Added atomic per-question JSON checkpoints to `run_eval.py`.
+   - Added `--resume`, `--restart`, `--max-retries`, and `--retry-delay` for safe recovery from local Ollama failures.
+   - Validates run config/question fingerprints before resuming, records successful `attempt_count`, and preserves an existing completed CSV until replacement output is complete.
+   - Increased local Ollama request timeout from 120 to 300 seconds for slow CPU inference.
+
+5. **Quality checks**
+   - `python -m pytest` passes (27 tests), including checkpoint resume/restart, retry, and output-preservation coverage.
    - `python -m ruff check .` passes.
-   - Local generation smoke test answered “Paris” for a France-capital context.
-   - Local JSON judge smoke test returned `{"faithfulness": 1.0, "answer_relevance": 1.0}` for a fully supported answer.
-   - One-question BM25 and hybrid-rewrite-rerank evaluations completed locally, exercising generation, judging, rewriting, and all latency fields.
+   - Real one-question preflight evaluations completed for all five modes through generation, judging, reranking, and rewriting using resumable checkpoints.
 
 ## Deliberate deviations from the handoff plan
 
@@ -56,7 +50,7 @@
 
 - The complete 150-question, five-mode local ablation has not run yet.
 - The final comparison table does not yet include all five modes with faithfulness and answer-relevance averages.
-- LLM stages are slow on the current local hardware: the one-question full BM25 and rewrite/rerank smoke runs took about 184 and 210 seconds respectively.
+- LLM stages are slow on the current local hardware; each full one-question preflight took roughly 2–4 minutes.
 
 ## How to finish
 
@@ -65,16 +59,16 @@
    ollama pull qwen2.5-coder:7b
    ollama list
    ```
-2. Run all five modes with the same local model:
+2. Run each mode sequentially into the same output directory; rerun an interrupted command with `--resume`:
    ```bash
-   python run_eval.py --config configs/dense_only.yaml
-   python run_eval.py --config configs/bm25_only.yaml
-   python run_eval.py --config configs/hybrid_rrf.yaml
-   python run_eval.py --config configs/hybrid_rerank.yaml
-   python run_eval.py --config configs/hybrid_rewrite_rerank.yaml
+   python run_eval.py --config configs/dense_only.yaml --output results/final_local_ollama_150q --resume
+   python run_eval.py --config configs/bm25_only.yaml --output results/final_local_ollama_150q --resume
+   python run_eval.py --config configs/hybrid_rrf.yaml --output results/final_local_ollama_150q --resume
+   python run_eval.py --config configs/hybrid_rerank.yaml --output results/final_local_ollama_150q --resume
+   python run_eval.py --config configs/hybrid_rewrite_rerank.yaml --output results/final_local_ollama_150q --resume
    ```
-3. Generate the final table:
+3. Generate the final table from explicit mode files:
    ```bash
-   python compare_results.py results/*.csv
+   python compare_results.py results/final_local_ollama_150q/dense_only.csv results/final_local_ollama_150q/bm25_only.csv results/final_local_ollama_150q/hybrid_rrf.csv results/final_local_ollama_150q/hybrid_rerank.csv results/final_local_ollama_150q/hybrid_rewrite_rerank.csv --output results/final_local_ollama_150q
    ```
 4. Copy the updated table into `README.md`.
