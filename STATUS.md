@@ -1,6 +1,6 @@
 # Project Status — RAG Evaluation & Ablation Harness
 
-**Date:** 2026-09-09
+**Date:** 2026-09-10
 **Repo:** https://github.com/nabeelali0707/eval-harness.git
 
 ## What was done
@@ -48,9 +48,11 @@
    - `EvalPipeline` wires retrieval → optional rewrite → optional rerank → generation → judging.
 
 7. **Quality checks**
-   - `python -m pytest tests/test_scorer.py` passes (8 tests).
-   - `python -m ruff check` passes.
-   - `README.md` includes reproduction steps, architecture, current results, and API-key instructions.
+   - `python -m pytest` passes (12 tests): scorer, RRF, dense/BM25 retrieval, API-free pipeline stages, and eval CSV output.
+   - `python -m ruff check .` passes.
+   - API-free BM25 smoke test passes with `--no-generator --sample 5`.
+   - `run_eval.py` now writes `rewrite_ms` for per-question rewrite latency tracing.
+   - `README.md` distinguishes retrieval-only runs from the full Claude-backed ablation.
    - `handoff/10_BUILD_PROGRESS.md` updated with milestones and deviations.
 
 ## Deliberate deviations from the handoff plan
@@ -70,8 +72,11 @@
    ```env
    ANTHROPIC_API_KEY=your_key_here
    ```
-2. Run the remaining modes:
+2. Run all five modes with the same generator/judge model:
    ```bash
+   python run_eval.py --config configs/dense_only.yaml
+   python run_eval.py --config configs/bm25_only.yaml
+   python run_eval.py --config configs/hybrid_rrf.yaml
    python run_eval.py --config configs/hybrid_rerank.yaml
    python run_eval.py --config configs/hybrid_rewrite_rerank.yaml
    ```

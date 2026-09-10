@@ -53,6 +53,7 @@ def main(
         "faithfulness",
         "answer_relevance",
         "latency_ms",
+        "rewrite_ms",
         "retrieve_ms",
         "rerank_ms",
         "generate_ms",

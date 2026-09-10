@@ -38,12 +38,16 @@ pip install -r requirements.txt
 # 1. Build indices (downloads sentence-transformer model on first run)
 python build_index.py --corpus data/corpus.json --output cache
 
-# 2. Run retrieval-only modes (no API key needed)
+# 2. Run retrieval-only baselines (no API key needed)
+python run_eval.py --config configs/dense_only.yaml --no-generator
+python run_eval.py --config configs/bm25_only.yaml --no-generator
+python run_eval.py --config configs/hybrid_rrf.yaml --no-generator
+
+# 3. Run the complete five-mode ablation (requires ANTHROPIC_API_KEY)
+# Use the same generator/judge model for every mode to keep the comparison valid.
 python run_eval.py --config configs/dense_only.yaml
 python run_eval.py --config configs/bm25_only.yaml
 python run_eval.py --config configs/hybrid_rrf.yaml
-
-# 3. Run modes that use Claude for generation/judging (requires ANTHROPIC_API_KEY)
 python run_eval.py --config configs/hybrid_rerank.yaml
 python run_eval.py --config configs/hybrid_rewrite_rerank.yaml
 
@@ -51,7 +55,7 @@ python run_eval.py --config configs/hybrid_rewrite_rerank.yaml
 python compare_results.py results/*.csv
 ```
 
-Set your API key before running Modes D or E:
+Set your API key before running the complete five-mode ablation:
 
 ```bash
 # Linux/macOS

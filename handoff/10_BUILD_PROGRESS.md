@@ -27,6 +27,31 @@ Living log. The agent (or you) should append a dated entry after each work sessi
 
 ---
 
+## 2026-09-10 — Retrieval-only evaluation hardened
+
+**Completed:**
+- Added `--no-generator` documentation for API-free retrieval baselines.
+- Added `rewrite_ms` to per-question CSV output for Mode E latency traceability.
+- Removed unused RAGAS dependency; the implemented Claude judge remains the metrics path.
+- Added API-free tests for dense/BM25 retrieval, disabled optional pipeline stages, and `run_eval.py` CSV behavior.
+
+**Tested:**
+- `python -m pytest` passes (12 tests).
+- `python -m ruff check .` passes.
+- `python run_eval.py --config configs/bm25_only.yaml --no-generator --sample 5` completes.
+
+**Deviations from plan:**
+- None beyond the previously recorded hand-rolled Claude judge.
+
+**Assumptions made:**
+- Full faithfulness/relevance comparisons will rerun all five modes using the same configured Claude generator once credentials are available.
+
+**Next up:**
+- Add `ANTHROPIC_API_KEY` to `.env`.
+- Run the complete five-mode ablation and publish final metrics.
+
+---
+
 ## 2026-09-09 — Weeks 1–2 complete; reranker/generator/judge/rewriter implemented
 
 **Completed:**
