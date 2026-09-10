@@ -42,6 +42,7 @@ Living log. The agent (or you) should append a dated entry after each work sessi
 - `python -m pytest` passes (17 tests).
 - `python -m ruff check .` passes.
 - `python run_eval.py --config configs/bm25_only.yaml --no-generator --sample 5` completes.
+- `python run_eval.py --config configs/hybrid_rerank.yaml --no-generator --sample 2` completes.
 
 **Deviations from plan:**
 - None beyond the previously recorded hand-rolled Claude judge.

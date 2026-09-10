@@ -50,7 +50,7 @@
 7. **Quality checks**
    - `python -m pytest` passes (17 tests): scorer, RRF, dense/BM25 retrieval, API-free pipeline stages, multi-query candidate limits, judge parsing, comparison aggregation, and eval CSV output.
    - `python -m ruff check .` passes.
-   - API-free BM25 smoke test passes with `--no-generator --sample 5`.
+   - API-free BM25 and hybrid-rerank smoke tests pass with `--no-generator`.
    - `run_eval.py` now writes `rewrite_ms` for per-question rewrite latency tracing.
    - Retrieval-only runs record generation metrics as unavailable, not artificial zero scores.
    - Multi-query RRF retrieval now enforces configured `top_k` before reranking.
