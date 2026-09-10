@@ -9,5 +9,5 @@ rewriter:
 reranker:
   enabled: false
 generator:
-  model: claude-sonnet-4-6
+  model: qwen2.5-coder:7b
   max_tokens: 512

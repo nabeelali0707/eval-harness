@@ -21,7 +21,7 @@ python compare_results.py results/*.csv
 
 - 100–200 question eval set (subset of HotpotQA or NQ)
 - 5 pipeline modes as defined in `02_ARCHITECTURE.md`
-- FAISS + rank_bm25, local reranker, Claude for generation/judging
+- FAISS + rank_bm25, local reranker, Ollama (`qwen2.5-coder:7b`) for generation/judging
 - CSV + Markdown table output
 - A README with the final comparison table and a short written interpretation ("hybrid+rerank improved Recall@5 by X points over dense-only, at Yx latency cost")
 - Unit tests for scorer functions (RRF, Recall@k, MRR)

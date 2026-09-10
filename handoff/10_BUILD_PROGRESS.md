@@ -27,6 +27,31 @@ Living log. The agent (or you) should append a dated entry after each work sessi
 
 ---
 
+## 2026-09-10 — Local Ollama provider migration complete
+
+**Completed:**
+- Replaced Anthropic-backed generation, query rewriting, and LLM judging with a shared local Ollama HTTP client.
+- Standardized all five configs on installed `qwen2.5-coder:7b`; removed the API-key requirement and Anthropic dependency.
+- Added clear local-service, missing-model, invalid-response, and cloud-model errors.
+- Updated README, status, and provider documentation for local reproduction.
+
+**Tested:**
+- `python -m pytest` passes (22 tests).
+- `python -m ruff check .` passes.
+- Local generation and JSON-judge smoke tests pass.
+- One-question BM25 and hybrid rewrite/rerank evaluations complete through every enabled stage.
+
+**Deviations from plan:**
+- Replaced the planned hosted Claude provider with fully local Ollama to eliminate credentials and provider cost.
+
+**Assumptions made:**
+- `qwen2.5-coder:7b` is the strongest installed fully local model and remains available through the default Ollama service.
+
+**Next up:**
+- Run the complete 150-question five-mode local ablation and publish the final comparison table.
+
+---
+
 ## 2026-09-10 — Retrieval-only evaluation hardened
 
 **Completed:**

@@ -8,31 +8,17 @@
 1. **Connected repo**
    - Initialized `D:\eval_harness` as a Git repository.
    - Added `origin` remote pointing to `https://github.com/nabeelali0707/eval-harness.git`.
-   - Pushed all commits to GitHub on the `master` branch.
+   - Pushed all completed milestones to GitHub on the `master` branch.
 
-2. **Project scaffold**
-   - Created directory structure: `configs/`, `data/`, `src/`, `tests/`, `cache/`, `results/`.
-   - Added `requirements.txt`, `.env.example`, `.gitignore`, `pyproject.toml` (ruff config).
-   - Added five YAML configs: `dense_only`, `bm25_only`, `hybrid_rrf`, `hybrid_rerank`, `hybrid_rewrite_rerank`.
+2. **Project scaffold and data**
+   - Created the project structure, configuration, linting, and test setup.
+   - Converted a HotpotQA distractor development-set sample into 150 eval questions and 1,496 corpus chunks.
+   - Excluded the raw 59 MB dataset source from Git.
 
-3. **Dataset**
-   - Downloaded the HotpotQA distractor development set.
-   - Created `prepare_hotpotqa.py` to convert the raw JSON into:
-     - `data/eval_questions.json` — 150 questions with gold doc IDs and expected answers.
-     - `data/corpus.json` — 1,496 corpus chunks.
-   - Raw 59 MB source file is excluded from git via `.gitignore`.
-
-4. **Indexing**
-   - `build_index.py` builds a FAISS dense index and a `rank_bm25` index from `corpus.json`.
-   - Used `sentence-transformers/all-MiniLM-L6-v2` for fast CPU embeddings.
-
-5. **Retrieval baseline (Modes A/B/C)**
-   - `src/retriever.py` implements dense, BM25, reciprocal-rank-fusion, and hybrid search.
-   - `src/scorer.py` implements Recall@k and MRR with unit tests.
-   - `src/pipeline.py` is a config-driven `EvalPipeline`.
-   - `run_eval.py` runs one mode and writes per-question CSVs.
-   - `compare_results.py` aggregates mode CSVs into a markdown/CSV comparison table.
-   - Week 2 results on 150 HotpotQA questions:
+3. **Retrieval baseline (Modes A/B/C)**
+   - Built FAISS dense retrieval with `sentence-transformers/all-MiniLM-L6-v2`, BM25 retrieval, RRF fusion, and Recall@5/MRR scoring.
+   - Added a config-driven pipeline, CSV output, and comparison-table aggregation.
+   - Recorded the 150-question retrieval-only baseline:
 
      | mode       | recall@5 |   mrr | avg_latency_ms |
      |:-----------|---------:|------:|---------------:|
@@ -40,42 +26,46 @@
      | dense_only |    1.000 | 0.905 |          20.92 |
      | hybrid_rrf |    0.973 | 0.859 |          33.09 |
 
-6. **Reranker, generator, judge, rewriter (Modes D/E code)**
-   - `src/reranker.py` — cross-encoder reranking (`cross-encoder/ms-marco-MiniLM-L-6-v2`).
-   - `src/generator.py` — Claude answer generation from retrieved passages.
-   - `src/judge.py` — Claude-based faithfulness and answer-relevance scoring.
-   - `src/rewriter.py` — Claude-based multi-query expansion and HyDE.
-   - `EvalPipeline` wires retrieval → optional rewrite → optional rerank → generation → judging.
+4. **Reranking and query rewriting (Modes D/E)**
+   - Added the `cross-encoder/ms-marco-MiniLM-L-6-v2` reranker.
+   - Added multi-query expansion and HyDE behind the `rewriter.enabled` configuration flag.
+   - Enforced configured `top_k` after multi-query RRF fusion before reranking.
 
-7. **Quality checks**
-   - `python -m pytest` passes (17 tests): scorer, RRF, dense/BM25 retrieval, API-free pipeline stages, multi-query candidate limits, judge parsing, comparison aggregation, and eval CSV output.
+5. **Local Ollama LLM migration**
+   - Replaced all Anthropic API usage with a standard-library local Ollama client in `src/ollama_client.py`.
+   - Standardized generation, rewriting, and judging on installed `qwen2.5-coder:7b` across all five YAML configs.
+   - Added clear errors for an unavailable Ollama service, missing local model, malformed responses, and cloud-tagged model names.
+   - Preserved the judge's JSON parsing and 0–1 score normalization safeguards.
+   - Removed the Anthropic dependency and API-key requirement; `.env.example` now documents optional `OLLAMA_HOST` configuration.
+
+6. **Quality checks**
+   - `python -m pytest` passes (22 tests), including Ollama transport, model availability, cloud-model rejection, and shared pipeline-client coverage.
    - `python -m ruff check .` passes.
-   - API-free BM25 and hybrid-rerank smoke tests pass with `--no-generator`.
-   - `run_eval.py` now writes `rewrite_ms` for per-question rewrite latency tracing.
-   - Retrieval-only runs record generation metrics as unavailable, not artificial zero scores.
-   - Multi-query RRF retrieval now enforces configured `top_k` before reranking.
-   - Judge responses are normalized to valid 0–1 metrics.
-   - `README.md` distinguishes retrieval-only runs from the full Claude-backed ablation.
-   - `handoff/10_BUILD_PROGRESS.md` updated with milestones and deviations.
+   - Local generation smoke test answered “Paris” for a France-capital context.
+   - Local JSON judge smoke test returned `{"faithfulness": 1.0, "answer_relevance": 1.0}` for a fully supported answer.
+   - One-question BM25 and hybrid-rewrite-rerank evaluations completed locally, exercising generation, judging, rewriting, and all latency fields.
 
 ## Deliberate deviations from the handoff plan
 
 - Embedding model switched from `BAAI/bge-large-en-v1.5` to `sentence-transformers/all-MiniLM-L6-v2` for faster CPU iteration.
 - Reranker switched from `BAAI/bge-reranker-v2-m3` to `cross-encoder/ms-marco-MiniLM-L-6-v2` for speed.
-- Hand-rolled Claude judge used instead of RAGAS to avoid an OpenAI dependency.
+- The planned hosted generator/judge was replaced by local Ollama using `qwen2.5-coder:7b`; no API key or network LLM provider is needed.
+- The hand-rolled judge remains instead of RAGAS to avoid unrelated provider dependencies.
 
 ## What is NOT done
 
-- Modes D and E have not been run end-to-end because `ANTHROPIC_API_KEY` is not set in the environment or in a `.env` file.
-- Final comparison table does not yet include faithfulness, answer relevance, or Mode D/E rows.
+- The complete 150-question, five-mode local ablation has not run yet.
+- The final comparison table does not yet include all five modes with faithfulness and answer-relevance averages.
+- LLM stages are slow on the current local hardware: the one-question full BM25 and rewrite/rerank smoke runs took about 184 and 210 seconds respectively.
 
 ## How to finish
 
-1. Create `D:\eval_harness\.env` with:
-   ```env
-   ANTHROPIC_API_KEY=your_key_here
+1. Ensure the selected local model is present and Ollama is available:
+   ```bash
+   ollama pull qwen2.5-coder:7b
+   ollama list
    ```
-2. Run all five modes with the same generator/judge model:
+2. Run all five modes with the same local model:
    ```bash
    python run_eval.py --config configs/dense_only.yaml
    python run_eval.py --config configs/bm25_only.yaml

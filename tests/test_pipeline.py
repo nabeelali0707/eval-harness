@@ -32,9 +32,10 @@ def test_bm25_pipeline_skips_disabled_optional_stages(monkeypatch):
         "bm25_search",
         lambda *args: [("doc_b", 2.0), ("doc_a", 1.0)],
     )
-    monkeypatch.setattr(pipeline_module, "ClaudeGenerator", unexpected_constructor)
-    monkeypatch.setattr(pipeline_module, "ClaudeJudge", unexpected_constructor)
-    monkeypatch.setattr(pipeline_module, "ClaudeRewriter", unexpected_constructor)
+    monkeypatch.setattr(pipeline_module, "OllamaClient", unexpected_constructor)
+    monkeypatch.setattr(pipeline_module, "OllamaGenerator", unexpected_constructor)
+    monkeypatch.setattr(pipeline_module, "OllamaJudge", unexpected_constructor)
+    monkeypatch.setattr(pipeline_module, "OllamaRewriter", unexpected_constructor)
     monkeypatch.setattr(pipeline_module, "CrossEncoderReranker", unexpected_constructor)
 
     result = pipeline_module.EvalPipeline(config).run(
@@ -101,3 +102,50 @@ def test_multi_query_fusion_respects_retriever_top_k(monkeypatch):
     )
 
     assert retrieved_ids == ["doc_a", "doc_c"]
+
+
+def test_pipeline_shares_one_ollama_client_across_llm_stages(monkeypatch):
+    corpus = [{"doc_id": "doc_a", "text": "First passage"}]
+    config: dict[str, Any] = {
+        "name": "bm25_with_llm",
+        "retriever": {"mode": "bm25", "top_k": 1},
+        "rewriter": {"enabled": True},
+        "reranker": {"enabled": False},
+        "generator": {"enabled": True, "model": "test-model", "max_tokens": 64},
+    }
+    stage_clients: list[object] = []
+
+    class FakeOllamaClient:
+        def __init__(self, model: str) -> None:
+            self.model = model
+            self.available = False
+
+        def ensure_model_available(self) -> None:
+            self.available = True
+
+    class FakeRewriter:
+        def __init__(self, **kwargs: object) -> None:
+            stage_clients.append(kwargs["client"])
+
+    class FakeGenerator:
+        def __init__(self, **kwargs: object) -> None:
+            stage_clients.append(kwargs["client"])
+
+    class FakeJudge:
+        def __init__(self, **kwargs: object) -> None:
+            stage_clients.append(kwargs["client"])
+
+    monkeypatch.setattr(pipeline_module, "load_corpus", lambda _: corpus)
+    monkeypatch.setattr(pipeline_module, "load_doc_ids", lambda _: ["doc_a"])
+    monkeypatch.setattr(pipeline_module, "load_dense_index", lambda _: object())
+    monkeypatch.setattr(pipeline_module, "load_bm25_index", lambda _: object())
+    monkeypatch.setattr(pipeline_module, "OllamaClient", FakeOllamaClient)
+    monkeypatch.setattr(pipeline_module, "OllamaRewriter", FakeRewriter)
+    monkeypatch.setattr(pipeline_module, "OllamaGenerator", FakeGenerator)
+    monkeypatch.setattr(pipeline_module, "OllamaJudge", FakeJudge)
+
+    pipeline = pipeline_module.EvalPipeline(config)
+
+    assert pipeline.llm_client.model == "test-model"
+    assert pipeline.llm_client.available is True
+    assert stage_clients == [pipeline.llm_client, pipeline.llm_client, pipeline.llm_client]

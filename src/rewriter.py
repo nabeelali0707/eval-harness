@@ -1,22 +1,17 @@
 """Query rewriting / expansion stage."""
 from __future__ import annotations
 
-import os
-
-from anthropic import Anthropic
-from dotenv import load_dotenv
-
-load_dotenv()
+from src.ollama_client import DEFAULT_OLLAMA_MODEL, OllamaClient
 
 
-class ClaudeRewriter:
-    def __init__(self, model: str = "claude-sonnet-4-6", max_tokens: int = 256) -> None:
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise RuntimeError(
-                "ANTHROPIC_API_KEY not found. Set it in a .env file or environment."
-            )
-        self.client = Anthropic(api_key=api_key)
+class OllamaRewriter:
+    def __init__(
+        self,
+        model: str = DEFAULT_OLLAMA_MODEL,
+        max_tokens: int = 256,
+        client: OllamaClient | None = None,
+    ) -> None:
+        self.client = client or OllamaClient(model)
         self.model = model
         self.max_tokens = max_tokens
 
@@ -35,17 +30,11 @@ class ClaudeRewriter:
             f"Query: {query}\n\n"
             "Paraphrases:"
         )
-        response = self.client.messages.create(
-            model=self.model,
-            max_tokens=self.max_tokens,
-            messages=[{"role": "user", "content": prompt}],
-        )
         variants = [
             line.strip("-• ").strip()
-            for line in response.content[0].text.strip().splitlines()
+            for line in self.client.generate(prompt, self.max_tokens).splitlines()
             if line.strip()
         ]
-        # Always include the original query so we don't lose signal.
         return [query] + variants[:3]
 
     def _hyde(self, query: str) -> list[str]:
@@ -55,9 +44,4 @@ class ClaudeRewriter:
             f"Question: {query}\n\n"
             "Passage:"
         )
-        response = self.client.messages.create(
-            model=self.model,
-            max_tokens=self.max_tokens,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return [query, response.content[0].text.strip()]
+        return [query, self.client.generate(prompt, self.max_tokens)]

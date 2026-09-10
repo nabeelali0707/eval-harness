@@ -1,11 +1,11 @@
-"""Unit tests for parsing Claude judge responses without API calls."""
+"""Unit tests for parsing Ollama judge responses without model calls."""
 from __future__ import annotations
 
-from src.judge import ClaudeJudge
+from src.judge import OllamaJudge
 
 
 def parse_scores(text: str) -> dict[str, float]:
-    judge = ClaudeJudge.__new__(ClaudeJudge)
+    judge = OllamaJudge.__new__(OllamaJudge)
     return judge._parse_scores(text)
 
 

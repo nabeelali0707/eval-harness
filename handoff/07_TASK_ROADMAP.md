@@ -26,7 +26,7 @@ Assumes ~5–8 hours/week. Adjust pace as needed — order matters more than the
 
 - [ ] Build `src/reranker.py`: load cross-encoder, score (query, passage) pairs, return top-n
 - [ ] Wire reranker into `pipeline.py` behind the `reranker.enabled` config flag
-- [ ] Build the generator step: given top-n passages + question, call Claude to produce an answer
+- [ ] Build the generator step: given top-n passages + question, call local Ollama to produce an answer
 - [ ] Integrate RAGAS (or hand-rolled LLM-judge prompts) for faithfulness + answer relevance
 - [ ] Run Mode D (hybrid_rerank) end to end, full metric set
 

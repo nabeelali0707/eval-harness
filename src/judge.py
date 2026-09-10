@@ -2,23 +2,19 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 
-from anthropic import Anthropic
-from dotenv import load_dotenv
-
-load_dotenv()
+from src.ollama_client import DEFAULT_OLLAMA_MODEL, OllamaClient
 
 
-class ClaudeJudge:
-    def __init__(self, model: str = "claude-sonnet-4-6", max_tokens: int = 256) -> None:
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise RuntimeError(
-                "ANTHROPIC_API_KEY not found. Set it in a .env file or environment."
-            )
-        self.client = Anthropic(api_key=api_key)
+class OllamaJudge:
+    def __init__(
+        self,
+        model: str = DEFAULT_OLLAMA_MODEL,
+        max_tokens: int = 256,
+        client: OllamaClient | None = None,
+    ) -> None:
+        self.client = client or OllamaClient(model)
         self.model = model
         self.max_tokens = max_tokens
 
@@ -44,13 +40,9 @@ class ClaudeJudge:
             "- answer_relevance: does the answer address the question? (0 = irrelevant, 1 = directly answers)\n\n"
             "JSON:"
         )
-        response = self.client.messages.create(
-            model=self.model,
-            max_tokens=self.max_tokens,
-            messages=[{"role": "user", "content": prompt}],
+        return self._parse_scores(
+            self.client.generate(prompt, self.max_tokens, json_mode=True)
         )
-        text = response.content[0].text.strip()
-        return self._parse_scores(text)
 
     @staticmethod
     def _normalize_score(value: object) -> float:
@@ -60,7 +52,6 @@ class ClaudeJudge:
             return 0.0
 
     def _parse_scores(self, text: str) -> dict[str, float]:
-        # Try to extract JSON from markdown code fences or raw text.
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
             text = match.group(0)

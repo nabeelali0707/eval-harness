@@ -11,13 +11,13 @@ eval_questions.json ──▶ run_eval.py --config configs/<mode>.yaml
                               │
                               ▼
                         ┌──────────────┐
-                        │  EvalPipeline │
+                        │ EvalPipeline │
                         └──────────────┘
                               │
         ┌─────────┬──────┴───────┬───────────────┐
         ▼         ▼              ▼                ▼
    [Rewriter]  [Retriever]   [Reranker]      [Generator/Judge]
-   (optional)  dense/BM25/    (optional)      (Claude)
+   (optional)  dense/BM25/    (optional)      (Ollama)
                 hybrid+RRF
                               │
                               ▼
@@ -35,41 +35,38 @@ eval_questions.json ──▶ run_eval.py --config configs/<mode>.yaml
 ```bash
 pip install -r requirements.txt
 
-# 1. Build indices (downloads sentence-transformer model on first run)
+# 1. Install and start the local Ollama model used by every LLM stage.
+ollama pull qwen2.5-coder:7b
+ollama list
+# Run `ollama serve` only when the Ollama service is not already running.
+
+# 2. Build indices (downloads sentence-transformer model on first run)
 python build_index.py --corpus data/corpus.json --output cache
 
-# 2. Run retrieval-only baselines (no API key needed)
+# 3. Run retrieval-only baselines without LLM stages.
 python run_eval.py --config configs/dense_only.yaml --no-generator
 python run_eval.py --config configs/bm25_only.yaml --no-generator
 python run_eval.py --config configs/hybrid_rrf.yaml --no-generator
 
-# 3. Run the complete five-mode ablation (requires ANTHROPIC_API_KEY)
-# Use the same generator/judge model for every mode to keep the comparison valid.
+# 4. Run the complete five-mode ablation locally.
+# Each mode uses qwen2.5-coder:7b for generation, rewriting, and judging.
 python run_eval.py --config configs/dense_only.yaml
 python run_eval.py --config configs/bm25_only.yaml
 python run_eval.py --config configs/hybrid_rrf.yaml
 python run_eval.py --config configs/hybrid_rerank.yaml
 python run_eval.py --config configs/hybrid_rewrite_rerank.yaml
 
-# 4. Compare all modes
+# 5. Compare all modes
 python compare_results.py results/*.csv
 ```
 
-Set your API key before running the complete five-mode ablation:
-
-```bash
-# Linux/macOS
-export ANTHROPIC_API_KEY=your_key_here
-
-# Windows
-set ANTHROPIC_API_KEY=your_key_here
-```
-
-Or create a `.env` file in the repo root:
+No API key is required. Ollama defaults to `http://localhost:11434`; set `OLLAMA_HOST` in a local `.env` file only when your local service uses a different address:
 
 ```env
-ANTHROPIC_API_KEY=your_key_here
+OLLAMA_HOST=http://localhost:11434
 ```
+
+The harness intentionally rejects cloud-tagged Ollama models so all generation, rewriting, and judging remain local. `qwen2.5-coder:7b` was selected from the installed local models because it is the strongest available option with a 32K context window; it occupies about 4.7 GB.
 
 ## Data
 
@@ -85,15 +82,15 @@ Retrieval-only baseline on 150 HotpotQA questions:
 | dense_only |    1.000 | 0.905 |          20.92 |
 | hybrid_rrf |    0.973 | 0.859 |          33.09 |
 
-On this sample, dense retrieval alone already finds at least one gold document in the top-5 for every question, so hybrid fusion and reranking are not expected to improve Recall@5. The full ablation including generation, faithfulness, and the rewrite mode will be added once an Anthropic API key is supplied.
+On this sample, dense retrieval alone already finds at least one gold document in the top-5 for every question, so hybrid fusion and reranking are not expected to improve Recall@5. Local generation, JSON judging, and the rewrite/rerank route have passed one-question smoke tests; run the complete five-mode local ablation to produce final faithfulness, answer-relevance, and latency comparisons.
 
 ## Project structure
 
 ```
 ├── configs/              # YAML pipeline configs (one per mode)
 ├── data/                 # eval_questions.json + corpus.json
-├── src/                  # retriever, reranker, rewriter, generator, judge, pipeline, scorer
-├── tests/                # unit tests for scorer and RRF
+├── src/                  # retrieval, local Ollama LLM stages, pipeline, and scoring
+├── tests/                # unit tests
 ├── build_index.py        # build FAISS + BM25 indices
 ├── run_eval.py           # run one mode over the eval set
 ├── compare_results.py    # aggregate mode CSVs into a table
@@ -104,6 +101,7 @@ On this sample, dense retrieval alone already finds at least one gold document i
 ## Design notes
 
 - **Config-driven:** adding a sixth mode only requires a new YAML file in `configs/`.
-- **No LangChain/LlamaIndex:** plain Python functions so each stage is inspectable and unit-testable.
+- **Local by default:** Ollama keeps answer generation, rewriting, and judging on the machine without credentials.
 - **Same generator across all modes:** the only variable under test is retrieval, not generation.
+- **No LangChain/LlamaIndex:** plain Python functions so each stage is inspectable and unit-testable.
 - **Cached indices:** `cache/` holds the FAISS dense index and BM25 index so re-runs are fast.

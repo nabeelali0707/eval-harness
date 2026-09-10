@@ -8,8 +8,9 @@ from typing import Any
 import yaml
 from sentence_transformers import SentenceTransformer
 
-from src.generator import ClaudeGenerator
-from src.judge import ClaudeJudge
+from src.generator import OllamaGenerator
+from src.judge import OllamaJudge
+from src.ollama_client import DEFAULT_OLLAMA_MODEL, OllamaClient
 from src.reranker import CrossEncoderReranker
 from src.retriever import (
     bm25_search,
@@ -20,7 +21,7 @@ from src.retriever import (
     load_dense_index,
     load_doc_ids,
 )
-from src.rewriter import ClaudeRewriter
+from src.rewriter import OllamaRewriter
 
 
 def load_config(config_path: Path) -> dict[str, Any]:
@@ -62,27 +63,36 @@ class EvalPipeline:
             self.reranker = None
 
         generator_cfg = config.get("generator", {})
-        self.generator_model = generator_cfg.get("model", "claude-sonnet-4-6")
+        self.generator_model = generator_cfg.get("model", DEFAULT_OLLAMA_MODEL)
+        self.use_generator = generator_cfg.get("enabled", True)
 
         rewriter_cfg = config.get("rewriter", {})
         self.use_rewriter = rewriter_cfg.get("enabled", False)
+        self.llm_client = None
+        if self.use_rewriter or self.use_generator:
+            self.llm_client = OllamaClient(self.generator_model)
+            self.llm_client.ensure_model_available()
+
         if self.use_rewriter:
-            self.rewriter = ClaudeRewriter(
+            self.rewriter = OllamaRewriter(
                 model=self.generator_model,
                 max_tokens=256,
+                client=self.llm_client,
             )
             self.rewrite_strategy = rewriter_cfg.get("strategy", "multi_query")
         else:
             self.rewriter = None
-        self.use_generator = generator_cfg.get("enabled", True)
+
         if self.use_generator:
-            self.generator = ClaudeGenerator(
+            self.generator = OllamaGenerator(
                 model=self.generator_model,
                 max_tokens=generator_cfg.get("max_tokens", 512),
+                client=self.llm_client,
             )
-            self.judge = ClaudeJudge(
+            self.judge = OllamaJudge(
                 model=self.generator_model,
                 max_tokens=256,
+                client=self.llm_client,
             )
         else:
             self.generator = None

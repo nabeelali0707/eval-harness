@@ -42,8 +42,10 @@ You need an LLM for: query rewriting, final answer generation, and faithfulness/
 
 | Option | Notes |
 |---|---|
-| **Claude (via Anthropic API)** | Recommended — you already have this set up; use `claude-sonnet-4-6` for generation/judging, cheap and capable |
-| Local open model (e.g. via Ollama) | Only if you want a fully-offline, zero-cost version — slower iteration |
+| **`qwen2.5-coder:7b` via Ollama** | Implemented local default for generation, rewriting, and judging; installed locally and suitable for JSON-format judge output |
+| `gemma3:1b` via Ollama | Faster smoke-test alternative, but lower quality than the selected model |
+
+**Default for v1: local `qwen2.5-coder:7b` via Ollama.** It requires no API key; local CPU inference is slower than a hosted model.
 
 **Important:** use the *same* generation model across all 5 modes. The only variable under test should be the retrieval pipeline, not the generator — otherwise your ablation isn't clean.
 

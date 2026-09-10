@@ -1,7 +1,6 @@
 sentence-transformers>=2.7
 faiss-cpu>=1.8
 rank_bm25>=0.2.2
-anthropic>=0.34
 pyyaml>=6.0
 pandas>=2.2
 tabulate>=0.9
