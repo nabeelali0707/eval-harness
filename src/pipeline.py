@@ -160,7 +160,7 @@ class EvalPipeline:
 
         fused = reciprocal_rank_fusion(all_results, k=self.rrf_k)
         latencies["retrieve_ms"] = (time.perf_counter() - t0) * 1000
-        retrieved_ids = [doc_id for doc_id, _ in fused]
+        retrieved_ids = [doc_id for doc_id, _ in fused[: self.top_k]]
         return retrieved_ids, latencies
 
     def rerank(

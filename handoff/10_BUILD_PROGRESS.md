@@ -32,11 +32,12 @@ Living log. The agent (or you) should append a dated entry after each work sessi
 **Completed:**
 - Added `--no-generator` documentation for API-free retrieval baselines.
 - Added `rewrite_ms` to per-question CSV output for Mode E latency traceability.
+- Enforced configured `top_k` after multi-query RRF fusion before Mode E reranking.
 - Removed unused RAGAS dependency; the implemented Claude judge remains the metrics path.
-- Added API-free tests for dense/BM25 retrieval, disabled optional pipeline stages, and `run_eval.py` CSV behavior.
+- Added API-free tests for dense/BM25 retrieval, disabled optional pipeline stages, multi-query candidate limits, and `run_eval.py` CSV behavior.
 
 **Tested:**
-- `python -m pytest` passes (12 tests).
+- `python -m pytest` passes (13 tests).
 - `python -m ruff check .` passes.
 - `python run_eval.py --config configs/bm25_only.yaml --no-generator --sample 5` completes.
 
