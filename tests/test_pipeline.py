@@ -48,8 +48,8 @@ def test_bm25_pipeline_skips_disabled_optional_stages(monkeypatch):
 
     assert result["retrieved_doc_ids"] == ["doc_b", "doc_a"]
     assert result["generated_answer"] == ""
-    assert result["faithfulness"] == 0.0
-    assert result["answer_relevance"] == 0.0
+    assert result["faithfulness"] is None
+    assert result["answer_relevance"] is None
     assert "retrieve_ms" in result
     assert "rewrite_ms" not in result
     assert "rerank_ms" not in result

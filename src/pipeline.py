@@ -195,7 +195,7 @@ class EvalPipeline:
         self, question: str, answer: str, final_ids: list[str]
     ) -> tuple[dict[str, float], dict[str, float]]:
         if not self.use_generator or not self.judge:
-            return {"faithfulness": 0.0, "answer_relevance": 0.0}, {}
+            return {}, {}
 
         t0 = time.perf_counter()
         passages = self._get_passages(final_ids)
@@ -231,8 +231,8 @@ class EvalPipeline:
             "gold_doc_ids": question.get("gold_doc_ids", []),
             "retrieved_doc_ids": final_ids,
             "generated_answer": answer,
-            "faithfulness": scores.get("faithfulness", 0.0),
-            "answer_relevance": scores.get("answer_relevance", 0.0),
+            "faithfulness": scores.get("faithfulness"),
+            "answer_relevance": scores.get("answer_relevance"),
             **latencies,
             "latency_ms": sum(latencies.values()),
         }

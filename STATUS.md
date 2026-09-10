@@ -48,11 +48,13 @@
    - `EvalPipeline` wires retrieval → optional rewrite → optional rerank → generation → judging.
 
 7. **Quality checks**
-   - `python -m pytest` passes (13 tests): scorer, RRF, dense/BM25 retrieval, API-free pipeline stages, multi-query candidate limits, and eval CSV output.
+   - `python -m pytest` passes (17 tests): scorer, RRF, dense/BM25 retrieval, API-free pipeline stages, multi-query candidate limits, judge parsing, comparison aggregation, and eval CSV output.
    - `python -m ruff check .` passes.
    - API-free BM25 smoke test passes with `--no-generator --sample 5`.
    - `run_eval.py` now writes `rewrite_ms` for per-question rewrite latency tracing.
+   - Retrieval-only runs record generation metrics as unavailable, not artificial zero scores.
    - Multi-query RRF retrieval now enforces configured `top_k` before reranking.
+   - Judge responses are normalized to valid 0–1 metrics.
    - `README.md` distinguishes retrieval-only runs from the full Claude-backed ablation.
    - `handoff/10_BUILD_PROGRESS.md` updated with milestones and deviations.
 

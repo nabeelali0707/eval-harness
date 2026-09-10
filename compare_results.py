@@ -26,6 +26,9 @@ def main(result_paths: list[Path], output_dir: Path) -> None:
 
     summary = combined.groupby("mode").agg(**agg_map).reset_index()  # type: ignore[arg-type]
     summary = summary.round(3)
+    for metric in ("faithfulness", "answer_relevance"):
+        if metric in summary and summary[metric].isna().all():
+            summary = summary.drop(columns=metric)
 
     print("\nComparison Table:\n")
     print(summary.to_markdown(index=False))

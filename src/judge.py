@@ -52,6 +52,13 @@ class ClaudeJudge:
         text = response.content[0].text.strip()
         return self._parse_scores(text)
 
+    @staticmethod
+    def _normalize_score(value: object) -> float:
+        try:
+            return min(1.0, max(0.0, float(value)))
+        except (TypeError, ValueError):
+            return 0.0
+
     def _parse_scores(self, text: str) -> dict[str, float]:
         # Try to extract JSON from markdown code fences or raw text.
         match = re.search(r"\{.*\}", text, re.DOTALL)
@@ -59,9 +66,13 @@ class ClaudeJudge:
             text = match.group(0)
         try:
             parsed = json.loads(text)
-            return {
-                "faithfulness": float(parsed.get("faithfulness", 0.0)),
-                "answer_relevance": float(parsed.get("answer_relevance", 0.0)),
-            }
-        except (json.JSONDecodeError, ValueError):
+        except json.JSONDecodeError:
             return {"faithfulness": 0.0, "answer_relevance": 0.0}
+
+        if not isinstance(parsed, dict):
+            return {"faithfulness": 0.0, "answer_relevance": 0.0}
+
+        return {
+            "faithfulness": self._normalize_score(parsed.get("faithfulness")),
+            "answer_relevance": self._normalize_score(parsed.get("answer_relevance")),
+        }

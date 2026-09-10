@@ -70,12 +70,16 @@ def main(
 
     avg_recall = sum(r["recall_at_5"] for r in rows) / len(rows)
     avg_mrr = sum(r["mrr"] for r in rows) / len(rows)
-    avg_faith = sum(r.get("faithfulness", 0.0) for r in rows) / len(rows)
-    avg_rel = sum(r.get("answer_relevance", 0.0) for r in rows) / len(rows)
+    faithfulness_scores = [r["faithfulness"] for r in rows if r["faithfulness"] is not None]
+    relevance_scores = [r["answer_relevance"] for r in rows if r["answer_relevance"] is not None]
+    avg_faith = sum(faithfulness_scores) / len(faithfulness_scores) if faithfulness_scores else None
+    avg_rel = sum(relevance_scores) / len(relevance_scores) if relevance_scores else None
     avg_latency = sum(r["latency_ms"] for r in rows) / len(rows)
+    faithfulness_label = f"{avg_faith:.3f}" if avg_faith is not None else "n/a"
+    relevance_label = f"{avg_rel:.3f}" if avg_rel is not None else "n/a"
     print(
         f"\n{mode_name}: recall@5={avg_recall:.3f}, mrr={avg_mrr:.3f}, "
-        f"faithfulness={avg_faith:.3f}, relevance={avg_rel:.3f}, "
+        f"faithfulness={faithfulness_label}, relevance={relevance_label}, "
         f"avg_latency={avg_latency:.1f}ms"
     )
     print(f"Wrote per-question results to {output_path}")
