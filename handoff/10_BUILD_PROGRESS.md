@@ -27,6 +27,35 @@ Living log. The agent (or you) should append a dated entry after each work sessi
 
 ---
 
+## 2026-09-20 — Run protection, orchestration, and judge validation tooling
+
+**Completed:**
+- Investigated low judge averages in the partial dense_only checkpoint: sampled rows show 0.0 scores correspond to genuinely weak answers, so the judge is behaving plausibly; no fix made.
+- Benchmarked `qwen2.5-coder:7b` (~2.25 tok/s warm) vs `llama3.2:3b` (~3.2 tok/s warm); rejected the swap as only ~1.4x faster and it would invalidate checkpoint work plus the fixed-generator ablation.
+- Added `src/keep_awake.py` sleep prevention (Windows `SetThreadExecutionState`, macOS `caffeinate`) with unit tests.
+- Added `run_ablation.py` to run all five modes sequentially with resume, skip completed CSVs, stop on unrecoverable Ollama errors, and hold keep-awake; unit tested.
+- Added `label_judge_sample.py` for the roadmap's hand-validation task: reproducible JSONL worksheet export with passages plus MAE/agreement/Pearson scoring; unit tested.
+- Pruned the 11.5-hour sleep-outlier row (`hotpotqa_0009`) from the dense_only checkpoint.
+- Launched the full ablation via `run_ablation.py` into `results/final_local_ollama_150q` (dense_only resumed at 36/150).
+
+**Tested:**
+- `python -m pytest` passes (52 tests).
+- `python -m ruff check .` passes.
+- Live ablation run confirmed resuming dense_only at 36/150 and progressing.
+
+**Deviations from plan:**
+- No code changes to the judge or generator; the low averages were traced to genuinely weak local-model answers, not a judging bug.
+
+**Assumptions made:**
+- Multi-day wall-clock runtime is acceptable with sleep prevention and resumable checkpoints.
+
+**Next up:**
+- Monitor the ablation to completion across all five modes.
+- Label the 50-row judge worksheet and record agreement numbers.
+- Generate the final comparison table and update README with results and interpretation.
+
+---
+
 ## 2026-09-10 — Resumable local ablation workflow ready
 
 **Completed:**
