@@ -49,7 +49,14 @@ python run_eval.py --config configs/bm25_only.yaml --no-generator
 python run_eval.py --config configs/hybrid_rrf.yaml --no-generator
 
 # 4. Run the complete five-mode ablation locally.
-# Each mode checkpoints every successful question and can be resumed safely.
+# `run_ablation.py` runs all five modes sequentially into one directory,
+# resuming checkpoints, skipping finished modes, and holding OS sleep off.
+python run_ablation.py --output results/final_local_ollama_150q
+
+# Monitor progress and ETA at any time:
+python progress_report.py
+
+# Equivalent manual alternative (each mode resumes its own checkpoint):
 python run_eval.py --config configs/dense_only.yaml --output results/final_local_ollama_150q --resume
 python run_eval.py --config configs/bm25_only.yaml --output results/final_local_ollama_150q --resume
 python run_eval.py --config configs/hybrid_rrf.yaml --output results/final_local_ollama_150q --resume
@@ -95,6 +102,9 @@ On this sample, dense retrieval alone already finds at least one gold document i
 ├── tests/                # unit tests
 ├── build_index.py        # build FAISS + BM25 indices
 ├── run_eval.py           # run one mode over the eval set
+├── run_ablation.py       # run all five modes sequentially with resume
+├── progress_report.py    # per-mode checkpoint progress + ETA
+├── label_judge_sample.py # judge hand-labeling worksheet export/scoring
 ├── compare_results.py    # aggregate mode CSVs into a table
 ├── prepare_hotpotqa.py   # convert raw HotpotQA JSON to corpus/eval format
 └── handoff/              # original project docs
@@ -105,6 +115,7 @@ On this sample, dense retrieval alone already finds at least one gold document i
 - **Config-driven:** adding a sixth mode only requires a new YAML file in `configs/`.
 - **Local by default:** Ollama keeps answer generation, rewriting, and judging on the machine without credentials.
 - **Same generator across all modes:** the only variable under test is retrieval, not generation.
-- **Recoverable evaluation:** atomic per-question checkpoints let multi-day local runs continue after interruption.
+- **Recoverable evaluation:** atomic per-question checkpoints let multi-day local runs continue after interruption; `run_ablation.py` also prevents OS sleep for the duration.
+- **Judge validation:** `label_judge_sample.py` exports a reproducible hand-labeling sample and reports human-vs-judge MAE, agreement rate, and Pearson correlation.
 - **No LangChain/LlamaIndex:** plain Python functions so each stage is inspectable and unit-testable.
 - **Cached indices:** `cache/` holds the FAISS dense index and BM25 index so re-runs are fast.
