@@ -6,6 +6,8 @@ cache/
 results/*
 !results/.gitkeep
 *.log
+ablation_live.log
+ablation_live.err
 .DS_Store
 .vscode/
 .idea/
