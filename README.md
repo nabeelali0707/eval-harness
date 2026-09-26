@@ -51,6 +51,11 @@ python run_eval.py --config configs/hybrid_rrf.yaml --no-generator
 # 4. Run the complete five-mode ablation locally.
 # `run_ablation.py` runs all five modes sequentially into one directory,
 # resuming checkpoints, skipping finished modes, and holding OS sleep off.
+# On Windows, `start_ablation.ps1` does the same but fully detached from the
+# terminal: it refuses to start a second runner, starts Ollama if it is down,
+# and survives closing the shell or rebooting the machine.
+powershell -ExecutionPolicy Bypass -File start_ablation.ps1
+# Or run it in the foreground instead:
 python run_ablation.py --output results/final_local_ollama_150q
 
 # Monitor progress and ETA at any time:
@@ -103,6 +108,7 @@ On this sample, dense retrieval alone already finds at least one gold document i
 ├── build_index.py        # build FAISS + BM25 indices
 ├── run_eval.py           # run one mode over the eval set
 ├── run_ablation.py       # run all five modes sequentially with resume
+├── start_ablation.ps1    # detached Windows relauncher (duplicate-safe)
 ├── progress_report.py    # per-mode checkpoint progress + ETA
 ├── label_judge_sample.py # judge hand-labeling worksheet export/scoring
 ├── compare_results.py    # aggregate mode CSVs into a table
