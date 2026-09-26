@@ -88,6 +88,7 @@ This repo uses a 150-question sample from the [HotpotQA](https://hotpotqa.github
 
 ## Current results
 
+<!-- RESULTS:START -->
 Retrieval-only baseline on 150 HotpotQA questions:
 
 | mode       | recall@5 |   mrr | avg_latency_ms |
@@ -97,6 +98,9 @@ Retrieval-only baseline on 150 HotpotQA questions:
 | hybrid_rrf |    0.973 | 0.859 |          33.09 |
 
 On this sample, dense retrieval alone already finds at least one gold document in the top-5 for every question, so hybrid fusion and reranking are not expected to improve Recall@5. Local generation, JSON judging, and the rewrite/rerank route have passed one-question preflight runs with resumable checkpoints; run the complete five-mode local ablation to produce final faithfulness, answer-relevance, and latency comparisons.
+<!-- RESULTS:END -->
+
+When the ablation completes, `python finalize_results.py` regenerates this section (table, interpretation, and judge-agreement note if present) automatically.
 
 ## Project structure
 
